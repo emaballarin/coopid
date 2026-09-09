@@ -6,12 +6,21 @@ working unchanged. See `PROJECT.md` for scope and build order.
 
 from importlib.metadata import PackageNotFoundError, version
 
+from coopid.calibration import Calibration, calibrate
 from coopid.filters import EMAViolation
 from coopid.multipliers import BoundedMultiplier
 from coopid.optim import nuPID
 from coopid.schedules import GatedLevel, OpenLoopLevel
 
-__all__ = ["BoundedMultiplier", "EMAViolation", "GatedLevel", "OpenLoopLevel", "nuPID"]
+__all__ = [
+    "BoundedMultiplier",
+    "Calibration",
+    "EMAViolation",
+    "GatedLevel",
+    "OpenLoopLevel",
+    "calibrate",
+    "nuPID",
+]
 
 try:
     __version__ = version("coopid")

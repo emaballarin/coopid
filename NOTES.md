@@ -74,3 +74,29 @@ afterwards from separate state (`d_xi`, `d_diff`). That makes `Kd = 0` bit-ident
 `nuPI` *by construction* rather than by numerical luck, keeps Cooper's two init schemes and both
 sparse paths working untouched, and means a Cooper upgrade cannot silently change the PI
 behaviour here. The cost is that the D path is dense-only; sparse gradients raise while `Kd != 0`.
+
+## 09/09/2026 — an unreachable constraint does not merely fail to bind; it wrecks the primal
+
+Found while building the calibration end-to-end test. The setup: `min 0.5t² − 3t` subject to
+`mean((t + eps)²) ≤ level`, where the statistic is a mean of squares and therefore has a **floor
+of 1**. A hardcoded `level = 0` is unreachable by construction.
+
+The expected symptom is the multiplier pinning at its ceiling, and that happens. The *unexpected*
+one is that the run diverged: `theta` reached 1.8e12. The cause is conditioning, not the
+constraint. The primal objective is `0.5t² − 3t + mu(t² + 1)`, whose curvature is `1 + 2mu`. With
+`mu` pinned at 100 that is **201**, so gradient descent is stable only for `lr < 2/201 ≈ 0.00995`
+— and the primal was running at `1e-2`, a hair over the line.
+
+So a saturated multiplier is not a contained failure. It silently multiplies the primal's
+effective curvature, and any step size chosen against the unconstrained problem can cross its
+stability boundary without anything in the constraint machinery reporting a problem. Two
+practical consequences:
+
+- `BoundedMultiplier.is_saturated()` should be logged every run, not inspected after a failure.
+- A cap is not only a weighting decision (as its docstring says) but a **step-size** decision for
+  the primal. Set `upper` with the primal's learning rate in mind, or the cap that was supposed
+  to be a safety backstop becomes the thing that detonates.
+
+The test uses `lr = 1e-3` so both arms are stable and the contrast is about reachability alone:
+naive level 0 → multiplier pinned at the cap, constraint still violated by more than the entire
+floor; calibrated level → multiplier at 0.69, well off the ceiling, constraint met.

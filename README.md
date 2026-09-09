@@ -17,9 +17,24 @@ than a hypothetical:
 | **Constraint-level schedules** | Cooper's `penalty_coefficient_updaters` move the augmented-Lagrangian penalty `c`. Nothing moves the constraint *level* itself, which is what a warm-up or a gated tightening needs. |
 | **`nuPID`** | `nuPI` is a proportional-integral controller. Adding `Kd` on the second difference of the filtered error completes the PID. Measured on a problem with a closed-form saddle: dual overshoot falls **8.8x** from `Kd=0` to `Kd=20`, with the equilibrium unmoved. |
 
-Planned, not yet implemented: **threshold calibration** — deriving a constraint level from a
-measured Monte-Carlo floor and its per-batch spread, so that a threshold is a defensible number
-rather than a guess.
+| **`calibrate` / `Calibration`** | A constraint level is a number someone has to choose, and for a statistic estimated from a finite batch there is no defensible constant: it has a floor, the floor is not zero, and it moves with sample size, dimension and preprocessing. Measure it instead. |
+
+### Calibration, concretely
+
+```python
+from coopid import calibrate
+
+# Push draws from the NULL through the SAME pipeline the real statistic goes through.
+cal = calibrate(lambda g: my_statistic(sample_from_null(g)), n_repeats=2000)
+
+level = cal.level(n_sd=3.0)  # three per-batch spreads above the measured floor
+dual_lr = cal.dual_lr(gain=0.1)  # dimensionless: `gain` of multiplier per spread of violation
+margin = cal.margin_sd(observed)  # report in spreads, never in raw units
+```
+
+`cal.standard_error` is deliberately separate from `cal.per_batch_sd`; they differ by
+`sqrt(n_repeats)` and confusing them fails in both directions at once — the level comes out too
+tight to reach *and* the ascent rate too slow to arrive.
 
 ## Install
 

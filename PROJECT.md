@@ -24,11 +24,17 @@ Everything here is additive and composes with stock Cooper.
    completes it in velocity form. The PI part is delegated to `nuPI` verbatim and the
    derivative increment applied from independent state, so `Kd = 0` is bit-identical by
    construction — and checked over 48 gain/init/maximize combinations anyway.
-5. **Threshold calibration** — planned, and deliberately last because it is the largest
-   piece. Deriving a constraint level from a measured Monte-Carlo floor and its per-batch
-   spread, and reporting margins in spread units rather than raw units, because a
-   threshold that is a difference of two similar quantities is not a scale and cannot be
-   divided by.
+5. **Threshold calibration** — done. `calibrate` / `Calibration`: a level derived from a
+   measured null rather than guessed, margins reported in per-batch spreads rather than raw
+   units, and a dual learning rate made dimensionless as `gain / per_batch_sd`. The caller
+   supplies the null-sampling callable, because only the caller knows the pipeline and the
+   floor is a property of the pipeline.
+
+## Scope is complete
+
+All five items are implemented and tested. Further work is deepening rather than filling in:
+a robust (median/MAD) calibration variant for heavy-tailed statistics, multi-constraint
+convenience wrappers, and eventually a JAX backend as a sibling rather than a fork.
 
 ## Conventions
 
