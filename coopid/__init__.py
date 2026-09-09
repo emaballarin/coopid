@@ -8,9 +8,10 @@ from importlib.metadata import PackageNotFoundError, version
 
 from coopid.filters import EMAViolation
 from coopid.multipliers import BoundedMultiplier
+from coopid.optim import nuPID
 from coopid.schedules import GatedLevel, OpenLoopLevel
 
-__all__ = ["BoundedMultiplier", "EMAViolation", "GatedLevel", "OpenLoopLevel"]
+__all__ = ["BoundedMultiplier", "EMAViolation", "GatedLevel", "OpenLoopLevel", "nuPID"]
 
 try:
     __version__ = version("coopid")

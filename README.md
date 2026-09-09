@@ -15,10 +15,11 @@ than a hypothetical:
 | **`BoundedMultiplier`** | Cooper projects inequality multipliers onto the non-negative orthant and nothing more. With no ceiling a multiplier can grow until its term dwarfs the rest of the loss, at which point the objective is ill-posed rather than merely badly conditioned. |
 | **`EMAViolation` (GECO)** | `nuPI` smooths the error signal on its *proportional* path only; its integral acts on the raw violation. GECO integrates the *smoothed* constraint. These are different controllers, and Cooper implements one of them. |
 | **Constraint-level schedules** | Cooper's `penalty_coefficient_updaters` move the augmented-Lagrangian penalty `c`. Nothing moves the constraint *level* itself, which is what a warm-up or a gated tightening needs. |
+| **`nuPID`** | `nuPI` is a proportional-integral controller. Adding `Kd` on the second difference of the filtered error completes the PID. Measured on a problem with a closed-form saddle: dual overshoot falls **8.8x** from `Kd=0` to `Kd=20`, with the equilibrium unmoved. |
 
-Planned, not yet implemented: a derivative term completing PID on top of `nuPI`, and
-**threshold calibration** — deriving a constraint level from a measured Monte-Carlo floor and its
-per-batch spread, so that a threshold is a defensible number rather than a guess.
+Planned, not yet implemented: **threshold calibration** — deriving a constraint level from a
+measured Monte-Carlo floor and its per-batch spread, so that a threshold is a defensible number
+rather than a guess.
 
 ## Install
 

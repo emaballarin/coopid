@@ -20,7 +20,10 @@ Everything here is additive and composes with stock Cooper.
    `ConstraintState.strict_violation` seam, which exists precisely to let the dual see a
    different (possibly non-differentiable) measurement from the primal.
 3. **Constraint-level schedules** — done. `OpenLoopLevel`, `GatedLevel`.
-4. **Derivative term (full PID)** — planned. `nuPI` is PI; a `Kd` path completes it.
+4. **`nuPID`** — done. `nuPI` is PI; `Kd` on the second difference of the filtered error
+   completes it in velocity form. The PI part is delegated to `nuPI` verbatim and the
+   derivative increment applied from independent state, so `Kd = 0` is bit-identical by
+   construction — and checked over 48 gain/init/maximize combinations anyway.
 5. **Threshold calibration** — planned, and deliberately last because it is the largest
    piece. Deriving a constraint level from a measured Monte-Carlo floor and its per-batch
    spread, and reporting margins in spread units rather than raw units, because a
