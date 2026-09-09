@@ -4,13 +4,16 @@ Additive only: every object here is a Cooper object or produces one, and stock C
 working unchanged. See `PROJECT.md` for scope and build order.
 """
 
-from importlib.metadata import PackageNotFoundError, version
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version
 
-from coopid.calibration import Calibration, calibrate
+from coopid.calibration import calibrate
+from coopid.calibration import Calibration
 from coopid.filters import EMAViolation
 from coopid.multipliers import BoundedMultiplier
 from coopid.optim import nuPID
-from coopid.schedules import GatedLevel, OpenLoopLevel
+from coopid.schedules import GatedLevel
+from coopid.schedules import OpenLoopLevel
 
 __all__ = [
     "BoundedMultiplier",

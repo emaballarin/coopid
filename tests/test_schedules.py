@@ -1,7 +1,9 @@
 import math
 
 import pytest
-from coopid import GatedLevel, OpenLoopLevel
+
+from coopid import GatedLevel
+from coopid import OpenLoopLevel
 
 
 def test_linear_endpoints_and_midpoint():

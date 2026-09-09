@@ -6,6 +6,7 @@ import pytest
 import torch
 from cooper.optim import nuPI
 from cooper.optim.torch_optimizers.nupi_optimizer import nuPIInitType
+
 from coopid import nuPID
 
 GRID = [

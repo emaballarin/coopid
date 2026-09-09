@@ -1,6 +1,7 @@
 import cooper
 import pytest
 import torch
+
 from coopid import BoundedMultiplier
 
 

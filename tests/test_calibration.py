@@ -3,7 +3,10 @@ import math
 import cooper
 import pytest
 import torch
-from coopid import BoundedMultiplier, Calibration, calibrate
+
+from coopid import BoundedMultiplier
+from coopid import calibrate
+from coopid import Calibration
 
 
 def test_recovers_a_null_with_a_known_floor_and_spread():

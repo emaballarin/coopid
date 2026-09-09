@@ -11,14 +11,14 @@ dual driven by plain projected ascent. Measured on `min 0.5x² − 9x` s.t. `x �
 noise on the violation, tail standard deviation of the multiplier over the last 1000 of 12000
 steps:
 
-| `decay` | tail sd of `mu` |
-| ------- | --------------- |
-| 0.0 (off) | 0.104 |
-| 0.9     | 0.144 |
-| 0.95    | 0.135 |
-| 0.99    | 0.087 |
+| `decay`   | tail sd of `mu` |
+| --------- | --------------- |
+| 0.0 (off) | 0.104           |
+| 0.9       | 0.144           |
+| 0.95      | 0.135           |
+| 0.99      | 0.087           |
 
-No useful reduction, and at shorter budgets heavy smoothing is clearly *worse* because the lag
+No useful reduction, and at shorter budgets heavy smoothing is clearly _worse_ because the lag
 has not washed out yet (decay 0.99 at 4000 steps: sd 0.525 against 0.122). The reason is
 structural: `mu_{t+1} = mu_t + lr · violation` is **already** a low-pass filter, so pre-filtering
 its input barely moves its output variance while definitely adding phase lag.
@@ -34,7 +34,7 @@ its input barely moves its output variance while definitely adding phase lag.
   lucky batch is unrecoverable — the level never loosens again.
 
 Consequence for the docs: do not sell the filter as variance reduction for the multiplier. It is
-a change of *what signal the dual integrates*, which matters most when something downstream is
+a change of _what signal the dual integrates_, which matters most when something downstream is
 not itself an integrator.
 
 ## 09/09/2026 — the D term, and why it is a second difference
@@ -44,7 +44,7 @@ its update is the textbook incremental PI,
 
     Delta mu_t = lr * ( Ki * e_t + Kp * (xi_t - xi_{t-1}) )
 
-with `xi` an EMA of the error, so the proportional path sees a *filtered* first difference. The
+with `xi` an EMA of the error, so the proportional path sees a _filtered_ first difference. The
 incremental form of PID adds a **second** difference, which is what `nuPID` contributes:
 
     Delta mu_t += lr * Kd * (xi_t - 2 xi_{t-1} + xi_{t-2})
@@ -65,13 +65,13 @@ the warning when `Kd != 0` with `ema_nu == 0`.
 | 20   | **0.263**            | 1.0000    | 8.0000     |
 
 Monotone, 8.8x at `Kd = 20`, equilibrium untouched. Unlike the EMA result recorded above, this
-one matched the intuition -- because overshoot is a *transient* property and damping is exactly
+one matched the intuition -- because overshoot is a _transient_ property and damping is exactly
 what a derivative term buys, whereas the earlier claim was about steady-state variance through
 an integrator.
 
 **Design note.** The PI part is delegated to `nuPI.step()` verbatim and the derivative applied
 afterwards from separate state (`d_xi`, `d_diff`). That makes `Kd = 0` bit-identical to stock
-`nuPI` *by construction* rather than by numerical luck, keeps Cooper's two init schemes and both
+`nuPI` _by construction_ rather than by numerical luck, keeps Cooper's two init schemes and both
 sparse paths working untouched, and means a Cooper upgrade cannot silently change the PI
 behaviour here. The cost is that the D path is dense-only; sparse gradients raise while `Kd != 0`.
 
@@ -81,7 +81,7 @@ Found while building the calibration end-to-end test. The setup: `min 0.5t² −
 `mean((t + eps)²) ≤ level`, where the statistic is a mean of squares and therefore has a **floor
 of 1**. A hardcoded `level = 0` is unreachable by construction.
 
-The expected symptom is the multiplier pinning at its ceiling, and that happens. The *unexpected*
+The expected symptom is the multiplier pinning at its ceiling, and that happens. The _unexpected_
 one is that the run diverged: `theta` reached 1.8e12. The cause is conditioning, not the
 constraint. The primal objective is `0.5t² − 3t + mu(t² + 1)`, whose curvature is `1 + 2mu`. With
 `mu` pinned at 100 that is **201**, so gradient descent is stable only for `lr < 2/201 ≈ 0.00995`
