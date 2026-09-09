@@ -1,0 +1,59 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "coopid"
+dynamic = ["version"]
+authors = [
+    {name = "Emanuele Ballarin", email = "emanuele@ballarin.cc"}
+]
+description = "Controller-shaped Lagrange multipliers for Cooper: GECO smoothing, bounded duals, constraint-level schedules"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.14"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Intended Audience :: Science/Research",
+    "Environment :: Console",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.14",
+    "License :: OSI Approved :: MIT License",
+]
+keywords = [
+    "PyTorch",
+    "Cooper",
+    "Constrained Optimization",
+    "Lagrange Multipliers",
+    "GECO",
+    "PID Control",
+    "Primal-Dual",
+]
+dependencies = [
+    "torch>=2.4",
+    "cooper-optim>=1.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[project.urls]
+Homepage = "https://github.com/emaballarin/coopid"
+
+[tool.hatch.build.targets.wheel]
+packages = ["coopid"]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "coopid/_version.py"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+    "slow: sampling-heavy statistical tests (minutes, not seconds)",
+]

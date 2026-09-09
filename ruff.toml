@@ -1,0 +1,22 @@
+line-length = 120
+preview = true
+respect-gitignore = false
+target-version = "py314"
+
+# hatch-vcs writes this at build time, and `respect-gitignore = false` above means it
+# would otherwise be linted -- which breaks CI, where the editable install generates it
+# before the lint step runs.
+extend-exclude = ["coopid/_version.py"]
+
+[analyze]
+    preview = true
+
+[format]
+    docstring-code-format = true
+    docstring-code-line-length = 100
+    preview = true
+
+[lint]
+    ignore = ["F401", "I001"]
+    preview = true
+    task-tags = ["FIXME", "TODO", "MEMENTO"]
