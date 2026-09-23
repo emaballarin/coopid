@@ -1,8 +1,6 @@
 """GECO's smoothing, routed through Cooper's own primal/dual measurement split."""
 
 from typing import Any
-from typing import Optional
-from typing import Union
 
 import torch
 from cooper.constraints import ConstraintState

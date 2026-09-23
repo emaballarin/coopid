@@ -1,11 +1,20 @@
+# The maintainer's standard configuration, verbatim from `~/ruffconfigs/ebdefault/ruff.toml`.
+# Copied rather than referenced so each repository lints identically without depending on a path
+# outside it, and so `ruff check` with no arguments is already correct.
+#
+# ⚠️ Without this file ruff falls back to its own defaults, which disagree with these codebases on
+# two rules ignored here deliberately: `I001` (import sorting -- this code uses one import per line,
+# which ruff's isort would collapse) and `F401`. A bare `ruff check` in a repository missing this
+# file reported 23 `I001` findings that are not findings, while hiding 4 that were.
+
 line-length = 120
 preview = true
 respect-gitignore = false
 target-version = "py314"
 
-# hatch-vcs writes this at build time, and `respect-gitignore = false` above means it
-# would otherwise be linted -- which breaks CI, where the editable install generates it
-# before the lint step runs.
+# hatch-vcs writes this at build time, and `respect-gitignore = false` above means it would
+# otherwise be linted -- which breaks CI, where the editable install generates it before the lint
+# step runs.
 extend-exclude = ["coopid/_version.py"]
 
 [analyze]

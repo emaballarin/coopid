@@ -1,7 +1,5 @@
 """Lagrange multipliers with a ceiling, not only a floor."""
 
-from typing import Optional
-
 import torch
 from cooper.multipliers import DenseMultiplier
 from cooper.utils import ConstraintType
