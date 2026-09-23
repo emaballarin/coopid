@@ -10,14 +10,13 @@ and `nuPI` — a proportional-integral controller for the dual variable.
 `coopid` adds the few things it does not have, each of which is a documented failure mode rather
 than a hypothetical:
 
-| what                           | why                                                                                                                                                                                                                                                              |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`BoundedMultiplier`**        | Cooper projects inequality multipliers onto the non-negative orthant and nothing more. With no ceiling a multiplier can grow until its term dwarfs the rest of the loss, at which point the objective is ill-posed rather than merely badly conditioned.         |
-| **`EMAViolation` (GECO)**      | `nuPI` smooths the error signal on its _proportional_ path only; its integral acts on the raw violation. GECO integrates the _smoothed_ constraint. These are different controllers, and Cooper implements one of them.                                          |
-| **Constraint-level schedules** | Cooper's `penalty_coefficient_updaters` move the augmented-Lagrangian penalty `c`. Nothing moves the constraint _level_ itself, which is what a warm-up or a gated tightening needs.                                                                             |
-| **`nuPID`**                    | `nuPI` is a proportional-integral controller. Adding `Kd` on the second difference of the filtered error completes the PID. Measured on a problem with a closed-form saddle: dual overshoot falls **8.8x** from `Kd=0` to `Kd=20`, with the equilibrium unmoved. |
-
-| **`calibrate` / `Calibration`** | A constraint level is a number someone has to choose, and for a statistic estimated from a finite batch there is no defensible constant: it has a floor, the floor is not zero, and it moves with sample size, dimension and preprocessing. Measure it instead. |
+| what                            | why                                                                                                                                                                                                                                                              |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`BoundedMultiplier`**         | Cooper projects inequality multipliers onto the non-negative orthant and nothing more. With no ceiling a multiplier can grow until its term dwarfs the rest of the loss, at which point the objective is ill-posed rather than merely badly conditioned.         |
+| **`EMAViolation` (GECO)**       | `nuPI` smooths the error signal on its _proportional_ path only; its integral acts on the raw violation. GECO integrates the _smoothed_ constraint. These are different controllers, and Cooper implements one of them.                                          |
+| **Constraint-level schedules**  | Cooper's `penalty_coefficient_updaters` move the augmented-Lagrangian penalty `c`. Nothing moves the constraint _level_ itself, which is what a warm-up or a gated tightening needs.                                                                             |
+| **`nuPID`**                     | `nuPI` is a proportional-integral controller. Adding `Kd` on the second difference of the filtered error completes the PID. Measured on a problem with a closed-form saddle: dual overshoot falls **8.8x** from `Kd=0` to `Kd=20`, with the equilibrium unmoved. |
+| **`calibrate` / `Calibration`** | A constraint level is a number someone has to choose, and for a statistic estimated from a finite batch there is no defensible constant: it has a floor, the floor is not zero, and it moves with sample size, dimension and preprocessing. Measure it instead.  |
 
 ### Calibration, concretely
 
