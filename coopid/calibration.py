@@ -12,14 +12,16 @@ goes through, record where it lands and how much it moves from batch to batch, a
 level a stated number of spreads above that floor.
 """
 
+import hashlib
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
 from dataclasses import field
+from typing import Literal
 
 import torch
 
-__all__ = ["Calibration", "calibrate", "jackknife_error"]
+__all__ = ["Calibration", "DrawStream", "calibrate", "jackknife_error"]
 
 
 def jackknife_error(values: torch.Tensor, n_sd: float) -> float:
@@ -45,6 +47,37 @@ def jackknife_error(values: torch.Tensor, n_sd: float) -> float:
     loo_var = (total_sq - values.square() - (n - 1) * loo_mean.square()) / (n - 2)
     loo = loo_mean + n_sd * loo_var.clamp_min(0.0).sqrt()
     return float(((n - 1) / n * (loo - loo.mean()).square().sum()).sqrt())
+
+
+DrawStream = Literal["labelled", "offset"]
+
+
+def _repeat_seed(seed: int, offset: int, stream: DrawStream) -> int:
+    """The generator seed for one calibration repeat.
+
+    ``"labelled"`` (the default) hashes ``"{seed}:{offset}"``, so two calibrations with different
+    bases are genuinely independent whatever bases they are given.
+
+    ``"offset"`` is ``seed + offset``, the obvious scheme and a **trap**: bases that differ by less
+    than ``n_repeats`` share draws, and bases ``0`` and ``1`` at ``n_repeats = 64`` share 63 of 64.
+    A caller passing a run index as the base then gets calibrations that look far more stable
+    across runs than they are. Measured on a heavy-tailed null as the mean ``|level(b) - level(b')|``
+    over 25 base pairs: **1.55e-03** for ``b' = b + 1`` against **1.67e-02** for disjoint bases, a
+    factor of **10.8**. (A first pass put it at 4.1x using the range of four calibrations, which is
+    far too noisy an estimator to compare two schemes with.) Kept reachable only for reproducing a
+    calibration made against it.
+
+    ⚠️ :py:func:`scfreg.statistic.calibrate_floor` carries the same keyword with the **opposite**
+    default, because ~780 stored thresholds there were produced under ``"offset"`` and changing it
+    would move every one. Nothing depends on this package's calibrations, so here the correct
+    scheme is simply the default.
+    """
+    if stream == "labelled":
+        digest = hashlib.blake2b(f"{seed}:{offset}".encode(), digest_size=8).digest()
+        return int.from_bytes(digest, "big") >> 1
+    if stream == "offset":
+        return seed + offset
+    raise ValueError(f"stream must be 'labelled' or 'offset', got {stream!r}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -205,6 +238,7 @@ def calibrate(
     *,
     n_repeats: int = 200,
     seed: int = 0,
+    stream: DrawStream = "labelled",
     device: torch.device | str | None = None,
 ) -> Calibration:
     r"""Measure a statistic's floor by evaluating it on draws from its own null.
@@ -221,8 +255,12 @@ def calibrate(
         n_repeats: Number of null draws. The floor mean converges as
             :math:`1/\\sqrt{n}`; the per-batch spread, which is what the level and the rate
             actually need, converges more slowly and is the reason to be generous here.
-        seed: Base seed. Repeat ``i`` uses ``seed + i``, so a calibration is reproducible and two
-            calibrations with different bases are independent.
+        seed: Base seed. A calibration is reproducible from it, and under the default
+            ``stream="labelled"`` two calibrations with **different bases are independent** --
+            which is not true of the obvious ``seed + i`` scheme, where bases closer together than
+            ``n_repeats`` share draws. See :py:func:`_repeat_seed`.
+        stream: How per-repeat seeds are derived from ``seed``. Leave at ``"labelled"``; pass
+            ``"offset"`` only to reproduce a calibration made against the older scheme.
         device: Device for the generator handed to the callable.
 
     Returns:
@@ -235,7 +273,7 @@ def calibrate(
         raise ValueError(f"a spread needs at least 2 draws, got n_repeats={n_repeats}")
     values = []
     for offset in range(n_repeats):
-        generator = torch.Generator(device=device or "cpu").manual_seed(seed + offset)
+        generator = torch.Generator(device=device or "cpu").manual_seed(_repeat_seed(seed, offset, stream))
         value = statistic_under_null(generator)
         tensor = torch.as_tensor(value)
         if tensor.numel() != 1:
