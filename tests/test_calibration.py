@@ -7,6 +7,8 @@ import torch
 from coopid import BoundedMultiplier
 from coopid import calibrate
 from coopid import Calibration
+from coopid.calibration import _repeat_seed
+from coopid.calibration import jackknife_error
 
 
 def test_recovers_a_null_with_a_known_floor_and_spread():
@@ -157,3 +159,130 @@ def test_end_to_end_a_hardcoded_level_is_unreachable_and_a_calibrated_one_is_met
     assert 0.0 < mu_cal < 20.0
     assert stat_cal <= level + 1e-2, f"expected statistic {stat_cal:.4f} should meet level {level:.4f}"
     assert theta > 0.4, "and the primal is not dragged to a useless point"
+
+
+def _explicit_jackknife(values, n_sd):
+    """Leave-one-out standard error of `mean + n_sd * sd`, computed the slow and obvious way."""
+    n = values.numel()
+    loo = torch.stack([torch.cat([values[:i], values[i + 1 :]]) for i in range(n)])
+    levels = loo.mean(dim=1) + n_sd * loo.std(dim=1, correction=1)
+    return math.sqrt((n - 1) / n * (levels - levels.mean()).square().sum().item())
+
+
+@pytest.mark.parametrize("n_sd", [0.0, 1.0, 3.0])
+def test_jackknife_error_is_the_leave_one_out_it_claims_to_be(n_sd):
+    """The closed-form updates reproduce the explicit jackknife rather than approximating it."""
+    values = torch.randn(37, generator=torch.Generator().manual_seed(0), dtype=torch.float64).exp()
+    assert jackknife_error(values, n_sd) == pytest.approx(_explicit_jackknife(values, n_sd), rel=1e-10)
+
+
+def test_jackknife_error_of_the_mean_is_the_standard_error():
+    """At `n_sd = 0` the level is the sample mean, whose jackknife error is exactly `sd / sqrt(n)`."""
+    values = torch.randn(50, generator=torch.Generator().manual_seed(1), dtype=torch.float64)
+    assert jackknife_error(values, 0.0) == pytest.approx((values.std() / 50**0.5).item(), rel=1e-12)
+    assert math.isnan(jackknife_error(values[:2], 3.0)), "two draws leave nothing to leave out"
+
+
+def test_jackknife_error_tracks_the_truth_where_normal_theory_does_not():
+    """On a heavy-tailed null the normal-theory error of `mean + 3 sd` understates; the jackknife does not.
+
+    Truth is the spread of the level over 2000 independent batches of 200. Measured: on squared
+    normals the jackknife lands at 0.95 of it and `(sd / sqrt(n)) sqrt(1 + n_sd^2 / 2)` at 0.37; on
+    Gaussian draws both land at 1.01, so what separates them is the tail and not a bias in either.
+    """
+    generator = torch.Generator().manual_seed(0)
+    n_sd, n = 3.0, 200
+    gaussian = torch.randn(2000, n, generator=generator, dtype=torch.float64)
+    for draws, normal_holds in ((gaussian.square(), False), (gaussian, True)):
+        truth = (draws.mean(dim=1) + n_sd * draws.std(dim=1)).std().item()
+        jackknife = sum(jackknife_error(row, n_sd) for row in draws) / len(draws)
+        normal = (draws.std(dim=1) / n**0.5 * math.sqrt(1 + n_sd**2 / 2)).mean().item()
+        assert jackknife / truth == pytest.approx(1.0, abs=0.1)
+        assert (normal / truth == pytest.approx(1.0, abs=0.1)) is normal_holds
+
+
+def test_calibrate_and_from_samples_keep_the_draws_they_summarise():
+    c = calibrate(lambda g: torch.randn(16, generator=g).mean(), n_repeats=50)
+    assert c.samples is not None and c.samples.dtype == torch.float64 and c.samples.numel() == 50
+    assert c.floor_mean == c.samples.mean().item()
+    assert c.per_batch_sd == c.samples.std(correction=1).item()
+
+    values = torch.tensor([[1.0, 2.0], [3.0, 4.0]])
+    assert torch.equal(Calibration.from_samples(values).samples, values.flatten().to(torch.float64))
+
+
+def test_samples_stay_out_of_equality_and_repr():
+    """A calibration remains a summary of three numbers for every purpose except `level_error`."""
+    kept = Calibration.from_samples(torch.tensor([1.0, 2.0, 3.0, 4.0]))
+    bare = Calibration(floor_mean=kept.floor_mean, per_batch_sd=kept.per_batch_sd, n_repeats=4)
+    assert kept == bare
+    assert repr(kept) == repr(bare)
+
+
+def test_samples_must_describe_the_same_draws():
+    with pytest.raises(ValueError, match="must agree"):
+        Calibration(floor_mean=0.0, per_batch_sd=1.0, n_repeats=5, samples=torch.zeros(4))
+
+
+@pytest.mark.parametrize("n_sd", [0.0, 3.0])
+def test_level_error_is_the_jackknife_of_the_level(n_sd):
+    c = calibrate(lambda g: torch.randn(16, generator=g).square().mean(), n_repeats=200)
+    assert c.level_error(n_sd) == jackknife_error(c.samples, n_sd)
+    assert c.level_error(n_sd) > 0.0
+
+
+def test_level_error_refuses_a_calibration_built_without_its_draws():
+    with pytest.raises(ValueError, match="constructed without them"):
+        Calibration(floor_mean=0.0, per_batch_sd=1.0, n_repeats=10).level_error()
+
+
+def _seeds_used(stream, base, n_repeats=64):
+    """The generator seed each repeat of one calibration was handed."""
+    seeds = []
+
+    def statistic(g):
+        seeds.append(g.initial_seed())
+        return torch.randn(4, generator=g).mean()
+
+    calibrate(statistic, n_repeats=n_repeats, seed=base, stream=stream)
+    return seeds
+
+
+def test_labelled_bases_share_no_draws_where_offset_bases_share_almost_all():
+    """Bases 0 and 1 share 63 of 64 repeats under `offset`, and none under the default `labelled`."""
+    assert len(set(_seeds_used("offset", 0)) & set(_seeds_used("offset", 1))) == 63
+    first, second = _seeds_used("labelled", 0), _seeds_used("labelled", 1)
+    assert len(set(first)) == 64
+    assert not set(first) & set(second)
+
+
+def test_labelled_seeds_are_pinned():
+    """A hash that changed between versions -- or one salted per process -- would move every calibration.
+
+    These are also exactly the seeds `scfreg`'s labelled stream produces, by construction.
+    """
+    assert [_repeat_seed(0, i, "labelled") for i in range(3)] == [
+        7689419447139100721,
+        8724540124617128742,
+        7470305241662836390,
+    ]
+    assert _repeat_seed(7, 0, "labelled") == 7985665222500292864
+    assert _repeat_seed(7, 5, "offset") == 12
+
+
+def test_the_default_stream_is_labelled_and_offset_reproduces_the_old_scheme():
+    def statistic(g):
+        return torch.randn(8, generator=g).mean()
+
+    default = calibrate(statistic, n_repeats=20, seed=5)
+    labelled = calibrate(statistic, n_repeats=20, seed=5, stream="labelled")
+    assert torch.equal(default.samples, labelled.samples)
+
+    offset = calibrate(statistic, n_repeats=20, seed=5, stream="offset")
+    previous = torch.stack([statistic(torch.Generator().manual_seed(5 + i)) for i in range(20)])
+    assert torch.equal(offset.samples, previous.to(torch.float64))
+
+
+def test_an_unknown_stream_is_rejected():
+    with pytest.raises(ValueError, match="stream must be"):
+        calibrate(lambda g: torch.randn(4, generator=g).mean(), n_repeats=5, stream="sequential")
